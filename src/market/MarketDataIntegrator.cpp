@@ -1,14 +1,8 @@
-// market/MarketDataIntegrator.cpp
 #include "MarketDataIntegrator.h"
 #include "../include/Logger.h"
 
-MarketDataIntegrator::MarketDataIntegrator(
-    MarketDataManager& mdManager, 
-    ExecutionManager& execManager)
-    : marketDataManager(mdManager),
-      executionManager(execManager),
-      running(false) {
-}
+MarketDataIntegrator::MarketDataIntegrator( MarketDataManager& mdManager, ExecutionManager& execManager)
+    : marketDataManager(mdManager), executionManager(execManager), running(false) {}
 
 void MarketDataIntegrator::start() {
     running = true;
@@ -43,10 +37,11 @@ void MarketDataIntegrator::removeOrderFromWatch(const std::string& orderId) {
 
 void MarketDataIntegrator::watchLoop() {
     while (running) {
-        try {
+        try{
             checkPriceConditions();
             std::this_thread::sleep_for(std::chrono::milliseconds(100));
-        } catch (const std::exception& e) {
+        }
+        catch(const std::exception& e) {
             Logger::error("Error in market data watch loop: ", e.what());
         }
     }
@@ -61,7 +56,7 @@ void MarketDataIntegrator::checkPriceConditions() {
         const auto& watch = it->second;
         
         auto orderBook = marketDataManager.getOrderBook(watch.order.instrumentName);
-        if (!orderBook) {
+        if(!orderBook) {
             ++it;
             continue;
         }
@@ -76,8 +71,7 @@ void MarketDataIntegrator::checkPriceConditions() {
             
             // Send to execution
             executionManager.addOrder(executionOrder);
-            Logger::info("Price condition met for order: ", orderId, 
-                        " at price: ", currentPrice);
+            Logger::info("Price condition met for order: ", orderId, " at price: ", currentPrice);
             
             // Remove from watch
             it = watchedOrders.erase(it);

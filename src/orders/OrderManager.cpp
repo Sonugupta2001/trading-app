@@ -7,6 +7,20 @@ OrderManager::OrderManager(AuthManager& authManager)
     : authManager(authManager),
       riskManager(std::make_unique<RiskManager>()) {}
 
+OrderManager::OrderManager(AuthManager& authManager, MarketDataManager& marketDataManager)
+    : authManager(authManager),
+      riskManager(std::make_unique<RiskManager>()),
+      executionManager(std::make_unique<ExecutionManager>()),
+      marketDataIntegrator(std::make_unique<MarketDataIntegrator>(marketDataManager, *executionManager)) {
+    
+    executionManager->setFillCallback([this](const Order& order, double amount, double price) {
+        this->onFill(order, amount, price);
+    });
+    
+    executionManager->start();
+    marketDataIntegrator->start();
+}
+
 bool OrderManager::placeOrder(Order& order) {
     try {
         if (!checkRateLimit()) {
@@ -72,7 +86,8 @@ bool OrderManager::placeOrder(Order& order) {
 
         return order.status != "rejected";
 
-    } catch (const std::exception& e) {
+    }
+    catch(const std::exception& e) {
         Logger::error("Error placing order: ", e.what());
         return false;
     }
@@ -80,7 +95,7 @@ bool OrderManager::placeOrder(Order& order) {
 
 bool OrderManager::cancelOrder(const std::string& orderId) {
     if (!authManager.refreshToken()) {
-        std::cerr << "Failed to refresh access token!" << std::endl;
+        Logger::error("Failed to refresh access token");
         return false;
     }
 
@@ -104,39 +119,40 @@ bool OrderManager::cancelOrder(const std::string& orderId) {
     std::string errs;
     std::istringstream responseStream(response);
 
-    if (!Json::parseFromStream(reader, responseStream, &jsonResponse, &errs)) {
-        std::cerr << "Error parsing cancel order response: " << errs << std::endl;
+    if(!Json::parseFromStream(reader, responseStream, &jsonResponse, &errs)) {
+        Logger::error("Error parsing cancel order response: ", errs);
         return false;
     }
 
-    if (jsonResponse["result"].isObject()) {
-        std::cout << "Order canceled successfully. Order ID: "
-                  << jsonResponse["result"]["order_id"].asString() << std::endl;
+    if(jsonResponse["result"].isObject()) {
+        Logger::info("Order canceled successfully. Order ID: ", jsonResponse["result"]["order_id"].asString());
         return true;
-    } else {
-        std::cerr << "Order cancellation failed: "
-                  << jsonResponse["error"]["message"].asString() << std::endl;
+    }
+    else{
+        Logger::error("Order cancellation failed: ", jsonResponse["error"]["message"].asString());
         return false;
     }
 }
 
-bool OrderManager::modifyOrder(const std::string& orderId, const Order& newOrder, const std::string& side) {
-    std::cout << "Modifying order with ID: " << orderId << std::endl;
+bool OrderManager::modifyOrder(const std::string& orderId, const Order& newOrder) {
+    Logger::info("Modifying order with ID: ", orderId);
 
     if (!cancelOrder(orderId)) {
-        std::cerr << "Failed to cancel the existing order. Modification aborted." << std::endl;
+        Logger::error("Failed to cancel the existing order. Modification aborted.");
         return false;
     }
-    std::cout << "Order canceled successfully. Proceeding to place a new order..." << std::endl;
+    Logger::info("Order canceled successfully. Proceeding to place a new order...");
 
-    if (placeOrder(newOrder, side)) {
-        std::cout << "Order modified successfully!" << std::endl;
+    if (placeOrder(newOrder)) {
+        Logger::info("Order modified successfully!");
         return true;
     } else {
-        std::cerr << "Failed to place the new order. Modification failed." << std::endl;
+        Logger::error("Failed to place the new order. Modification failed.");
         return false;
     }
 }
+
+
 
 std::string OrderManager::postRequest(const std::string& endpoint, const std::string& payload) {
     HttpClient client;
@@ -185,4 +201,25 @@ void OrderManager::setRiskLimits(const RiskManager::RiskLimits& limits) {
 
 std::unordered_map<std::string, double> OrderManager::getCurrentPositions() const {
     return riskManager->getCurrentPositions();
+}
+
+void OrderManager::onFill(const Order& order, double amount, double price) {
+    try {
+        double signedAmount = order.side == "buy" ? amount : -amount;
+        riskManager->updatePosition(order.instrumentName, signedAmount, price);
+
+        {
+            std::lock_guard<std::mutex> lock(ordersMutex);
+            if (activeOrders.find(order.orderId) != activeOrders.end()) {
+                activeOrders[order.orderId].status = "filled";
+                activeOrders[order.orderId].filledAmount = amount;
+                activeOrders[order.orderId].averageFilledPrice = price;
+            }
+        }
+
+        Logger::info("Order ", order.orderId, " filled: ", amount, " @ ", price);
+    }
+    catch (const std::exception& e) {
+        Logger::error("Error processing fill for order ", order.orderId, ": ", e.what());
+    }
 }

@@ -11,7 +11,7 @@ MarketDataManager::MarketDataManager(AuthManager& authManager) : authManager(aut
 
 // Helper function to perform HTTP POST requests
 std::string MarketDataManager::postRequest(const std::string& endpoint, const std::string& payload) {
-    std::string apiUrl = "https://test.deribit.com/api/v2/" + endpoint; // Deribit Testnet API base URL
+    std::string apiUrl = "https://test.deribit.com/api/v2/" + endpoint;
     CURL* curl = curl_easy_init();
     std::string response;
 

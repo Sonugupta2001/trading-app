@@ -1,9 +1,7 @@
-// risk/RiskManager.cpp
 #include "RiskManager.h"
 #include "../include/Logger.h"
 
 RiskManager::RiskManager() {
-    // Default risk limits
     limits.maxOrderSize = 1.0;
     limits.maxPositionSize = 5.0;
     limits.maxLeverage = 10.0;
@@ -16,7 +14,6 @@ bool RiskManager::validateOrder(const Order& order) {
     std::lock_guard<std::mutex> lock(riskMutex);
     
     try {
-        // Perform all risk checks
         if (!checkOrderSize(order)) {
             Logger::warning("Order rejected: Exceeds maximum order size");
             return false;
