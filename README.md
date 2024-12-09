@@ -1,6 +1,6 @@
 # Trading System: Technical Documentation
 ## 1. Introduction
-GoQuant is a high-performance trading system built for interacting with the Deribit API. The system supports real-time market data streaming, order management, and risk validation. It is implemented in C++ with modular components handling different aspects such as authentication, order management, and data streaming.
+This is a high-performance trading system built for interacting with the Deribit API. The system supports real-time market data streaming, order management, and risk validation. It is implemented in C++ with modular components handling different aspects such as authentication, order management, and data streaming.
 
 The system also integrates a WebSocket server for real-time communication and a Command-Line Interface (CLI) for user interaction.
 
@@ -19,34 +19,42 @@ Command-Line Interface: Allows users to interact with the system locally.
 ## 3. Module Breakdown
 
 ### 3.1 Authentication Module
-Files:
+
+```Files:
 auth/AuthManager.h
 auth/AuthManager.cpp
+```
 Purpose:
 Handles the authentication flow with the Deribit API, using client credentials to obtain and manage OAuth tokens.
 
 Key Classes and Methods:
+```
 AuthManager:
+```
+
 Constructor:
 Initializes the authentication manager with a client ID, client secret, and API URL.
-Example:
-cpp
-Copy code
+```cpp
 AuthManager authManager(clientId, clientSecret);
 bool authenticate():
+```
 Performs the client credentials grant to fetch an access token.
 Sends an HTTP POST request to the /public/auth endpoint.
 Parses the JSON response to extract access_token and refresh_token.
+```cpp
 bool refreshToken():
+```
 Refreshes the access token using the stored refresh_token.
 Updates the tokens upon success.
+```
 std::string getAccessToken():
+```
 Thread-safe method to retrieve the current access token for API calls.
-Implementation Highlights:
+
+### Implementation Highlights:
 The authenticate() method constructs a JSON payload and sends it to Deribit's public/auth endpoint:
 
-cpp
-Copy code
+```cpp
 Json::Value requestBody;
 requestBody["grant_type"] = "client_credentials";
 requestBody["client_id"] = clientId;
@@ -54,12 +62,15 @@ requestBody["client_secret"] = clientSecret;
 
 HttpClient client;
 std::string response = client.post(apiUrl + "public/auth", payload, headers);
+```
 If the authentication fails, an error is logged, and the process terminates.
 
 ### 3.2 Order Management Module
 Files:
+```
 orders/OrderManager.h
 orders/OrderManager.cpp
+```
 Purpose:
 Provides the core functionality for placing, modifying, and canceling orders. It integrates with the ExecutionManager to handle order execution and fills.
 
