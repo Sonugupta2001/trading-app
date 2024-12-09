@@ -1,4 +1,3 @@
-// orders/models/Order.h
 #ifndef ORDER_H
 #define ORDER_H
 
@@ -8,11 +7,11 @@
 struct Order {
     std::string orderId;
     std::string instrumentName;
-    std::string side;           // "buy" or "sell"
+    std::string side;
     double amount;
     double price;
-    std::string type;          // "limit" or "market"
-    std::string status;        // "pending", "filled", "cancelled", "rejected"
+    std::string type;
+    std::string status;
     double filledAmount;
     double averageFilledPrice;
     std::chrono::system_clock::time_point timestamp;

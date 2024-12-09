@@ -1,4 +1,3 @@
-// websockets/WebSocketServer.cpp
 #include "WebSocketServer.h"
 #include "../include/Logger.h"
 #include <json/json.h>

@@ -2,6 +2,7 @@
 #include "utils/HttpClient.h"
 #include <json/json.h>
 #include <iostream>
+#include <chrono>
 
 AuthManager::AuthManager(const std::string& clientId, const std::string& clientSecret, const std::string& apiUrl)
     : clientId(clientId), clientSecret(clientSecret), apiUrl(apiUrl) {}
@@ -22,12 +23,15 @@ std::string AuthManager::getAccessToken() {
 
 bool AuthManager::makeAuthRequest(const std::string& grantType, const std::string& token) {
     Json::Value requestBody;
-    requestBody["grant_type"] = grantType;
-    requestBody["client_id"] = clientId;
-    requestBody["client_secret"] = clientSecret;
+    requestBody["jsonrpc"] = "2.0";
+    requestBody["id"] = 0;
+    requestBody["method"] = "public/auth";
+    requestBody["params"]["grant_type"] = grantType;
+    requestBody["params"]["client_id"] = clientId;
+    requestBody["params"]["client_secret"] = clientSecret;
 
     if (grantType == "refresh_token") {
-        requestBody["refresh_token"] = token;
+        requestBody["params"]["refresh_token"] = token;
     }
 
     Json::StreamWriterBuilder writer;
@@ -36,7 +40,7 @@ bool AuthManager::makeAuthRequest(const std::string& grantType, const std::strin
     HttpClient client;
     std::string response;
     try {
-        response = client.post(apiUrl + "public/auth", payload, {{"Content-Type", "application/json"}});
+        response = client.post(apiUrl, payload, {{"Content-Type", "application/json"}});
     } catch (const std::exception& e) {
         std::cerr << "Error in HTTP request: " << e.what() << std::endl;
         return false;

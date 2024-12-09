@@ -23,4 +23,4 @@ private:
     bool makeAuthRequest(const std::string& grantType, const std::string& token = "");
 };
 
-#endif // AUTHMANAGER_H
+#endif

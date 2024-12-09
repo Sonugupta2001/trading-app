@@ -1,4 +1,3 @@
-// execution/ExecutionManager.cpp
 #include "ExecutionManager.h"
 #include "../include/Logger.h"
 
