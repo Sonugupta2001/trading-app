@@ -5,7 +5,7 @@ This is a high-performance trading system built for interacting with the Deribit
 The system also integrates a WebSocket server for real-time communication and a Command-Line Interface (CLI) for user interaction.
 
 ## 2. Architecture Overview
-The GoQuant application is structured around several key modules:
+The application is structured around several key modules:
 
 Authentication Module: Handles secure access to the Deribit API using OAuth tokens.
 Order Management: Provides functionality to place, modify, and cancel orders.
