@@ -22,6 +22,7 @@ OrderManager::OrderManager(AuthManager& authManager, MarketDataManager& marketDa
 }
 
 bool OrderManager::placeOrder(Order& order) {
+    auto start = std::chrono::high_resolution_clock::now(); // Start time
     try {
         if (!checkRateLimit()) {
             Logger::warning("Order rejected: Rate limit exceeded");
@@ -83,6 +84,10 @@ bool OrderManager::placeOrder(Order& order) {
             std::lock_guard<std::mutex> lock(ordersMutex);
             activeOrders[order.orderId] = order;
         }
+
+        auto end = std::chrono::high_resolution_clock::now(); // End time
+        std::chrono::duration<double, std::milli> latency = end - start;
+        Logger::info("Order placement latency: ", latency.count(), " ms");
 
         return order.status != "rejected";
 
@@ -204,6 +209,7 @@ std::unordered_map<std::string, double> OrderManager::getCurrentPositions() cons
 }
 
 void OrderManager::onFill(const Order& order, double amount, double price) {
+    auto start = std::chrono::high_resolution_clock::now(); // Start time
     try {
         double signedAmount = order.side == "buy" ? amount : -amount;
         riskManager->updatePosition(order.instrumentName, signedAmount, price);
@@ -222,4 +228,7 @@ void OrderManager::onFill(const Order& order, double amount, double price) {
     catch (const std::exception& e) {
         Logger::error("Error processing fill for order ", order.orderId, ": ", e.what());
     }
+    auto end = std::chrono::high_resolution_clock::now(); // End time
+    std::chrono::duration<double, std::milli> latency = end - start;
+    Logger::info("End-to-end trading loop latency: ", latency.count(), " ms");
 }

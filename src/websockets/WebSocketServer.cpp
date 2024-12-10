@@ -1,6 +1,7 @@
 #include "WebSocketServer.h"
 #include "../include/Logger.h"
 #include <json/json.h>
+#include <chrono>
 
 WebSocketServer::WebSocketServer() : running(false) {
     server.init_asio();
@@ -54,6 +55,7 @@ void WebSocketServer::onClose(ConnectionHandle hdl) {
 }
 
 void WebSocketServer::onMessage(ConnectionHandle hdl, Server::message_ptr msg) {
+    auto start = std::chrono::high_resolution_clock::now(); // Start time
     try {
         std::string payload = msg->get_payload();
         
@@ -76,6 +78,9 @@ void WebSocketServer::onMessage(ConnectionHandle hdl, Server::message_ptr msg) {
     } catch (const std::exception& e) {
         Logger::error("Error processing WebSocket message: ", e.what());
     }
+    auto end = std::chrono::high_resolution_clock::now(); // End time
+    std::chrono::duration<double, std::milli> latency = end - start;
+    Logger::info("WebSocket message propagation delay: ", latency.count(), " ms");
 }
 
 void WebSocketServer::handleSubscription(ConnectionHandle hdl, const std::string& message) {

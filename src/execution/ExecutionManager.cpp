@@ -1,7 +1,10 @@
 #include "ExecutionManager.h"
 #include "../include/Logger.h"
+#include "utils/HttpClient.h"
+#include <json/json.h>
+#include <chrono>
 
-ExecutionManager::ExecutionManager() : running(false) {}
+ExecutionManager::ExecutionManager(AuthManager& authManager) : running(false), authManager(authManager) {}
 
 ExecutionManager::~ExecutionManager() {
     stop();
@@ -60,44 +63,60 @@ void ExecutionManager::executionLoop() {
 
 void ExecutionManager::handleExecution(Order& order) {
     try {
-        // Simulate order execution (replace with actual exchange interaction)
-        order.status = "executing";
-        
-        // For market orders, execute immediately
-        if (order.type == "market") {
-            Fill fill;
-            fill.orderId = order.orderId;
-            fill.amount = order.amount;
-            fill.price = order.price; // In real system, would be market price
-            fill.timestamp = std::chrono::system_clock::now();
+        auto start = std::chrono::high_resolution_clock::now(); // Start time
+        // Prepare API request for placing the order
+        std::string endpoint = "private/" + order.side;
+        Json::Value request;
+        request["jsonrpc"] = "2.0";
+        request["id"] = 1;
+        request["method"] = endpoint;
 
-            std::lock_guard<std::mutex> lock(queueMutex);
-            fillQueue.push(fill);
-            
-            Logger::info("Market order executed: ", order.orderId);
+        Json::Value params;
+        params["instrument_name"] = order.instrumentName;
+        params["amount"] = order.amount;
+        params["type"] = order.type;
+        if (order.type == "limit") {
+            params["price"] = order.price;
         }
-        // For limit orders, check price conditions
-        else if (order.type == "limit") {
-            // In real system, would check against market price
-            bool priceConditionMet = true; // Placeholder
-            
-            if (priceConditionMet) {
-                Fill fill;
-                fill.orderId = order.orderId;
-                fill.amount = order.amount;
-                fill.price = order.price;
-                fill.timestamp = std::chrono::system_clock::now();
+        request["params"] = params;
 
-                std::lock_guard<std::mutex> lock(queueMutex);
-                fillQueue.push(fill);
-                
-                Logger::info("Limit order executed: ", order.orderId);
-            }
+        // Convert JSON to string
+        Json::StreamWriterBuilder writer;
+        std::string payload = Json::writeString(writer, request);
+
+        // Send the request using HttpClient
+        HttpClient client;
+        std::string response = client.post("https://test.deribit.com/api/v2/" + endpoint, payload, {
+            {"Authorization", "Bearer " + authManager.getAccessToken()},
+            {"Content-Type", "application/json"}
+        });
+
+        // Parse the response
+        Json::CharReaderBuilder reader;
+        Json::Value jsonResponse;
+        std::string errs;
+        std::istringstream responseStream(response);
+        if (!Json::parseFromStream(reader, responseStream, &jsonResponse, &errs)) {
+            Logger::error("Failed to parse order response: ", errs);
+            order.status = "failed";
+            return;
         }
 
-        processFills();
+        // Update order status based on response
+        updateOrderStatus(order, jsonResponse);
 
-    } catch (const std::exception& e) {
+        // Process fills if the order was filled
+        if (order.status == "filled" || order.status == "partially_filled") {
+            double filledAmount = order.side == "buy" ? order.filledAmount : -order.filledAmount;
+            riskManager->updatePosition(order.instrumentName, filledAmount, order.averageFilledPrice);
+        }
+
+        auto end = std::chrono::high_resolution_clock::now(); // End time
+        std::chrono::duration<double, std::milli> latency = end - start;
+        Logger::info("Order placement latency: ", latency.count(), " ms");
+
+    }
+    catch (const std::exception& e) {
         Logger::error("Error executing order ", order.orderId, ": ", e.what());
         order.status = "failed";
     }

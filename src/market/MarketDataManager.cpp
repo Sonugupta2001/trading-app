@@ -232,6 +232,7 @@ void MarketDataManager::handleOrderBookUpdate(const std::string& instrument, con
 }
 
 void MarketDataManager::processWebSocketMessage(const std::string& message) {
+    auto start = std::chrono::high_resolution_clock::now(); // Start time
     Json::CharReaderBuilder reader;
     Json::Value data;
     std::string errors;
@@ -245,6 +246,9 @@ void MarketDataManager::processWebSocketMessage(const std::string& message) {
             handleOrderBookUpdate(instrument, data["params"]["data"]);
         }
     }
+    auto end = std::chrono::high_resolution_clock::now(); // End time
+    std::chrono::duration<double, std::milli> latency = end - start;
+    Logger::info("Market data processing latency: ", latency.count(), " ms");
 }
 
 std::shared_ptr<OrderBook> MarketDataManager::getOrderBook(const std::string& instrument) {

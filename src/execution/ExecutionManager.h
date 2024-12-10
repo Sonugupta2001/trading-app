@@ -2,6 +2,7 @@
 #define EXECUTION_MANAGER_H
 
 #include "../orders/models/Order.h"
+#include "../auth/AuthManager.h"
 #include <queue>
 #include <functional>
 #include <thread>
@@ -11,7 +12,7 @@ class ExecutionManager {
 public:
     using FillCallback = std::function<void(const Order&, double, double)>;
 
-    ExecutionManager();
+    ExecutionManager(AuthManager& authManager);
     ~ExecutionManager();
 
     void start();
@@ -20,6 +21,7 @@ public:
     void setFillCallback(FillCallback callback);
 
 private:
+    AuthManager& authManager;
     struct Fill {
         std::string orderId;
         double price;
